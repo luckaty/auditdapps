@@ -22,7 +22,7 @@ AuditDApps was created to:
 The platform is designed to scale toward more advanced auditing, reporting, and certification workflows over time.
 
 
-CORE FEATURES
+## CORE FEATURES
 
 Authentication & Access Control
 - Email/password authentication via Supabase
@@ -82,7 +82,7 @@ Security by Design
 - Privileged logic isolated server-side
 
 
-PROJECT STRUCTURE
+## PROJECT STRUCTURE
 
 src/
   components/
@@ -98,7 +98,7 @@ supabase/
   config.toml
 
 
-LOCAL DEVELOPMENT
+## LOCAL DEVELOPMENT
 
 1. Install dependencies
    npm install
@@ -112,24 +112,34 @@ LOCAL DEVELOPMENT
 API keys (Supabase, OpenAI, Stripe) are required via environment variables.
 
 
-ABOUT THE PROJECT & CONTRIBUTORS
+## ABOUT THE PROJECT & CONTRIBUTORS
 
-AuditDApps is a co-owned collaborative project.
+AuditDApps is a founder-led security research initiative operationalised into a production SaaS platform for Web3 security self-audits.
 
-The product concept and security direction were defined by Henry Ajah (MSc Cyber Security).
+The security research foundation, audit methodology, and risk models were developed by Henry Ajah (MSc Cyber Security) as part of an academic research project.
 
-The platform was architected, designed, and implemented by Blessed Ogechukwu, who led:
-- Frontend architecture
-- Authentication and routing
-- Audit logic and persistence
-- Backend integration
-- AI pipelines
-- Stripe integration
-- Production readiness
+Blessed Ogechukwu served as Lead Engineer, responsible for translating this research into a secure, scalable, production-ready platform used by external developers and organisations.
 
-While AuditDApps is co-owned, this repository represents Blessed Ogechukwu’s independent engineering work.
+## Lead Engineering Responsibilities
 
+As Lead Engineer, Blessed Ogechukwu led the full engineering delivery of the platform, including:
 
-LICENSE
+System and frontend architecture using React and TypeScript
+
+Secure authentication, routing, and session management
+
+Audit logic implementation, persistence, and user ownership enforcement
+
+Backend and database integration
+
+Server-side AI-assisted recommendation workflows
+
+Stripe-based billing and access control
+
+Production deployment and scalability preparation
+
+While the security research and methodology are founder-owned, this repository represents Blessed Ogechukwu’s independent engineering implementation and system delivery.
+
+## LICENSE
 
 MIT License
