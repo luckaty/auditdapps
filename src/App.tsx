@@ -45,7 +45,6 @@ import Home from "./pages/Home";
 import AdminRoute from "./components/AdminRoute";
 import AdminLayout from "./components/AdminLayout";
 import AdminDashboard from "./pages/AdminDashboard";
-import DevMakeAdmin from "./pages/DevMakeAdmin";
 import PostEditor from "./pages/PostEditor";
 import BillingPage from "./pages/Billing";
 import {PaymentSuccess} from "./pages/PaymentSuccess";
@@ -174,7 +173,7 @@ function AppShell() {
         />
 
         {/* Dev helper */}
-        <Route path="/dev/make-admin" element={<DevMakeAdmin />} />
+  
         <Route path="/auth/payment/success" element={<PaymentSuccess />} />
 
         {/* Password */}
