@@ -16,7 +16,6 @@ import AuditCycle from "./components/AuditCycle";
 import WhatWeDo from "./components/WhatWeDo";
 import BestService from "./components/BestService";
 import Footer from "./components/Footer";
-import DbWakeGate from "./components/DbWakeGate";
 import ForgotPassword from "./pages/ForgotPassword";
 import UpdatePassword from "./pages/UpdatePassword";
 import Terms from "./pages/Terms";
@@ -215,7 +214,7 @@ const App = () => {
   }, []);
 
   return (
-    <DbWakeGate table="_warm">
+    
       <Router>
         <ThemeProvider>
           <Toaster
@@ -229,7 +228,7 @@ const App = () => {
           <AppShell />
         </ThemeProvider>
       </Router>
-    </DbWakeGate>
+  
   );
 };
 
