@@ -1,6 +1,6 @@
 // src/lib/plans.ts
 
-type PlanKey = "premium_weekly" | "premium_monthly" | "premium_annual";
+export type PlanKey = "premium_weekly" | "premium_monthly" | "premium_annual";
 
 type PlanDef = {
   label: string;

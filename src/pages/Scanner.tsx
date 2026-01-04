@@ -330,7 +330,15 @@ function FindingCard({ finding, index }: { finding: Finding; index: number }) {
   };
 
   const sevKey = finding.severity.toLowerCase();
-  const badgeStyle = sevMap[sevKey] ?? sevMap["medium"];
+  const allowed = ["critical", "high", "medium", "low"] as const;
+  type SevKey = (typeof allowed)[number];
+
+  const key: SevKey = (allowed as readonly string[]).includes(sevKey)
+    ? (sevKey as SevKey)
+    : "medium";
+
+  const badgeStyle = sevMap[key];
+
 
   return (
     <div className="rounded-xl border border-border bg-background px-4 py-3">

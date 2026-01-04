@@ -62,7 +62,11 @@ export default function Register() {
   const hasSymbol = /[^A-Za-z0-9]/.test(password);
   const pwOk = hasLen && hasLetter && hasNumber;
 
-  const strength = hasLen + (hasLetter ? 1 : 0) + (hasNumber ? 1 : 0) + (hasSymbol ? 1 : 0);
+  const strength =
+  (hasLen ? 1 : 0) +
+  (hasLetter ? 1 : 0) +
+  (hasNumber ? 1 : 0) +
+  (hasSymbol ? 1 : 0);
   const strengthLabel = ["Very weak", "Weak", "Okay", "Good", "Strong"][strength];
 
   const valid = emailOk && pwOk && orgName.trim().length >= 2 && agree && !loading;

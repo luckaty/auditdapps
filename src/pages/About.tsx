@@ -16,12 +16,9 @@ import aboutImg from "../assets/normal/about1.jpg";
 import vectorImg from "../assets/normal/about3.avif";
 import bgImg from "../assets/img/hero_bg_2_1.jpg";
 import shape1 from "../assets/img/shape_1.png";
+import { container, fadeUp } from "@/lib/motion";
 
-const container = { hidden: {}, show: { transition: { staggerChildren: 0.08 } } };
-const fadeUp = {
-  hidden: { opacity: 0, y: 18 },
-  show: { opacity: 1, y: 0, transition: { duration: 0.45, ease: "easeOut" } },
-};
+
 
 const AboutUs: React.FC = () => {
   return (

@@ -1,10 +1,11 @@
 // src/components/RequireAuth.tsx
-import { ReactNode, useEffect, useState } from "react";
+import type { ReactElement } from "react";
+import { useEffect, useState } from "react";
 import { Navigate, useLocation } from "react-router-dom";
 import { supabase } from "@/lib/supabaseClient";
 
 type RequireAuthProps = {
-  children: JSX.Element;
+  children: ReactElement;
 };
 
 export function RequireAuth({ children }: RequireAuthProps) {

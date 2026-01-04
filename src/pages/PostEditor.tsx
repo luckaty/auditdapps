@@ -213,10 +213,19 @@ export default function PostEditor() {
 
     try {
       if (isEditing) {
-        const { error } = await supabase.from("posts").update(payload).eq("id", id);
+        if (!id) throw new Error("Missing post id");
+
+        const { error } = await supabase
+          .from("posts")
+          .update(payload)
+          .eq("id", id);
+
         if (error) throw error;
+
         toast.success("Post updated");
         navigate(form.slug ? `/blog/${form.slug}` : `/blog/${id}`);
+
+
       } else {
         const { data, error } = await supabase
           .from("posts")

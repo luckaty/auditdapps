@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { MemoryRouter, Routes, Route } from "react-router-dom";
 import { render, screen, waitFor } from "@testing-library/react";
-import { RequireAuth } from "../RequireAuth";
+import { RequireAuth } from "@/components/RequireAuth";
 
 vi.mock("@/lib/supabaseClient", () => ({
   supabase: {

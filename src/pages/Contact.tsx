@@ -9,17 +9,11 @@ import bgImg from "../assets/img/hero_bg_2_1.jpg";
 import { FormEvent, useState } from "react";
 import { supabase } from "@/lib/supabaseClient";
 import toast from "react-hot-toast";
+import { container, fadeUp } from "@/lib/motion";
+
 
 export default function Contact() {
-  const container = {
-    hidden: {},
-    show: { transition: { staggerChildren: 0.08 } },
-  };
-
-  const fadeUp = {
-    hidden: { opacity: 0, y: 18 },
-    show: { opacity: 1, y: 0, transition: { duration: 0.45, ease: "easeOut" } },
-  };
+  
 
   // 🔹 NEW state for form fields + loading
   const [name, setName] = useState("");

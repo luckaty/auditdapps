@@ -1,58 +1,58 @@
 // src/pages/AuditDetail.tsx
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { ReactNode } from "react";
-import { useParams, useNavigate } from "react-router-dom";
+import { useNavigate, useParams } from "react-router-dom";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
-import { Doughnut, Bar } from "react-chartjs-2";
+import { Bar, Doughnut } from "react-chartjs-2";
 import { motion } from "framer-motion";
 import {
-  Chart as ChartJS,
   ArcElement,
-  Tooltip,
-  Legend,
-  CategoryScale,
-  LinearScale,
   BarElement,
-  ChartOptions,
-  Plugin,
+  CategoryScale,
+  Chart as ChartJS,
+  type ChartOptions,
+  type ChartType,
+  Legend,
+  LinearScale,
+  type Plugin,
+  Tooltip,
 } from "chart.js";
 import { supabase } from "@/lib/supabaseClient";
 import DashThemeToggle from "@/components/DashThemeToggle";
 import { fromDbSeverity, fromDbStatus } from "@/lib/mappers";
-import {
-  parseFindings,
-  computeRiskTotals,
-  posturePercent,
-} from "@/utils/riskUtils";
+import { computeRiskTotals, parseFindings, posturePercent } from "@/utils/riskUtils";
 
-ChartJS.register(
-  ArcElement,
-  Tooltip,
-  Legend,
-  CategoryScale,
-  LinearScale,
-  BarElement
-);
+ChartJS.register(ArcElement, Tooltip, Legend, CategoryScale, LinearScale, BarElement);
+
+/**
+ * Augment Chart.js plugin options typing so we don't need @ts-expect-error
+ * for our custom centerText plugin.
+ */
+declare module "chart.js" {
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  interface PluginOptionsByType<TType extends ChartType> {
+    centerText?: { text?: string; color?: string };
+  }
+}
 
 /* -------------------------- center text plugin -------------------------- */
 const centerTextPlugin: Plugin<"doughnut"> = {
   id: "centerText",
   beforeDraw(chart) {
-    const { ctx, width, height, config } = chart;
-    // @ts-expect-error custom plugin typing
-    const text = config.options?.plugins?.centerText?.text ?? "";
-    // @ts-expect-error custom plugin typing
-    const color = config.options?.plugins?.centerText?.color ?? "#0f172a";
+    const { ctx, width, height } = chart;
+    const opts = chart.options.plugins?.centerText;
+    const text = opts?.text ?? "";
+    const color = opts?.color ?? "#0f172a";
     if (!text) return;
 
     ctx.save();
     const fontSize = Math.min(width, height) / 6;
     ctx.font = `bold ${fontSize}px ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto`;
-    ctx.fillStyle = color as string;
+    ctx.fillStyle = color;
     ctx.textAlign = "center";
     ctx.textBaseline = "middle";
-    ctx.fillText(text as string, width / 2, height / 2);
+    ctx.fillText(text, width / 2, height / 2);
     ctx.restore();
   },
 };
@@ -60,14 +60,55 @@ const centerTextPlugin: Plugin<"doughnut"> = {
 const SEVS = ["Critical", "High", "Medium", "Low"] as const;
 type Sev = (typeof SEVS)[number];
 type RecStatus = "open" | "partial" | "implemented";
+
+type Finding = {
+  key: string; // stable unique key for React rendering
+  severity: Sev;
+  mitigation: "none" | "partial" | "full";
+  likelihood: string | null;
+  text: string;
+};
+
+type RecommendationRow = {
+  id: string;
+  audit_id: string;
+  title: string;
+  severity: string | null;
+  status: string | null;
+} & Record<string, unknown>;
+
 type RecNormalized = {
   id: string;
   audit_id: string;
   title: string;
   severity: Sev;
   status: RecStatus;
-  [k: string]: any;
+} & Record<string, unknown>;
+
+type AnalyticsLike = {
+  risk_score?: number | string | null;
+  overallPct?: number | string | null;
 };
+
+type AuditRow = {
+  id: string;
+  created_at: string | null;
+  score?: number | string | null;
+  user_type?: string | null;
+  meta?: {
+    user_type?: string | null;
+    analytics?: AnalyticsLike | null;
+    [k: string]: unknown;
+  } | null;
+  analytics?: AnalyticsLike | null;
+  baseline_findings?: Array<{
+    severity?: string;
+    mitigation?: string;
+    text?: string;
+    likelihood?: string;
+    [k: string]: unknown;
+  }>;
+} & Record<string, unknown>;
 
 /* ------------------------------ helpers ------------------------------ */
 function normSev(s?: string): Sev {
@@ -78,12 +119,14 @@ function normSev(s?: string): Sev {
   if (v === "low") return "Low";
   return "Low";
 }
+
 function normMit(m?: string): "none" | "partial" | "full" {
   const v = String(m || "").toLowerCase();
   if (v === "full") return "full";
   if (v === "partial") return "partial";
   return "none";
 }
+
 function formatDate(ts?: string | null) {
   if (!ts) return "—";
   try {
@@ -92,19 +135,27 @@ function formatDate(ts?: string | null) {
     return String(ts);
   }
 }
+
 function capitalize(s: string) {
   const t = s.trim();
   return t ? t.charAt(0).toUpperCase() + t.slice(1) : t;
 }
 
+/** Simple deterministic hash (sync) to build stable keys without array indexes. */
+function hashString(input: string): string {
+  let h = 2166136261; // FNV-1a seed
+  for (let i = 0; i < input.length; i++) {
+    h ^= input.charCodeAt(i);
+    h = Math.imul(h, 16777619);
+  }
+  return (h >>> 0).toString(16);
+}
+
 /** Humanize Q-style text into declarative narrative. */
-function humanizeFindingText(
-  input: string,
-  subject: string = "The organization"
-): string {
+function humanizeFindingText(input: string, subject: string = "The organization"): string {
   let t = String(input || "").trim();
   t = t.replace(/^control\s+missing:\s*/i, "");
-  t = t.replace(/^control\s+partially\s+implemented:\s*/i, (m) => "__PARTIAL__:");
+  t = t.replace(/^control\s+partially\s+implemented:\s*/i, () => "__PARTIAL__:");
   t = t.replace(/\?+$/g, "").replace(/\s*\.+\s*$/g, "").trim();
   t = t.replace(/^(if|for|when|in case|assuming)\s+[^,]+,\s*/i, "");
 
@@ -149,10 +200,7 @@ function humanizeFindingText(
       /^(does|do)\s+(the\s+organization|your\s+organization|the\s+project|the\s+dapp)\s+/i,
       ""
     );
-    t =
-      `${subject} has partially implemented ` +
-      t.charAt(0).toLowerCase() +
-      t.slice(1);
+    t = `${subject} has partially implemented ` + t.charAt(0).toLowerCase() + t.slice(1);
     return t.endsWith(".") ? t : t + ".";
   }
 
@@ -171,14 +219,11 @@ function humanizeFindingText(
       t = `${subj} is not ${rest}`;
     } else {
       const broad = t.match(/^is\s+the\s+(scope|project|system|protocol)\s+(.+)/i);
-      if (broad)
-        t = `${subject} has not clearly defined the ${broad[1]} ${broad[2]}`;
+      if (broad) t = `${subject} has not clearly defined the ${broad[1]} ${broad[2]}`;
     }
   }
 
-  if (
-    /^(use|enable|enforce|implement|maintain|have|run|perform|conduct)\b/i.test(t)
-  ) {
+  if (/^(use|enable|enforce|implement|maintain|have|run|perform|conduct)\b/i.test(t)) {
     t = `${subject} does not ` + t.toLowerCase();
   }
 
@@ -211,9 +256,7 @@ function cleanRecTitle(raw: string): string {
     const subj = m[1].trim();
     const verb = mapParticiple[m[2].toLowerCase()] || "Implement";
     const rest = (m[3] || "").trim();
-    return `${verb} ${subj}${rest ? " " + rest : ""}`
-      .replace(/\?+$/g, "")
-      .trim();
+    return `${verb} ${subj}${rest ? " " + rest : ""}`.replace(/\?+$/g, "").trim();
   }
 
   m = t.match(
@@ -223,27 +266,17 @@ function cleanRecTitle(raw: string): string {
     const subj = m[1].trim();
     const verb = mapParticiple[m[2].toLowerCase()] || "Implement";
     const rest = (m[3] || "").trim();
-    return `${verb} ${subj}${rest ? " " + rest : ""}`
-      .replace(/\?+$/g, "")
-      .trim();
+    return `${verb} ${subj}${rest ? " " + rest : ""}`.replace(/\?+$/g, "").trim();
   }
 
-  m = t.match(
-    /^(does|do)\s+(the\s+organization|your\s+organization|the\s+project|the\s+dapp|it|you)\s+have\s+(.+)$/i
-  );
+  m = t.match(/^(does|do)\s+(the\s+organization|your\s+organization|the\s+project|the\s+dapp|it|you)\s+have\s+(.+)$/i);
   if (m) return `Establish ${m[3].trim()}`.replace(/\?+$/g, "").trim();
 
   return t.replace(/\?+$/g, "").trim();
 }
 
 /* ------------------------------- UI shells ------------------------------ */
-function Pill({
-  children,
-  className = "",
-}: {
-  children: ReactNode;
-  className?: string;
-}) {
+function Pill({ children, className = "" }: { children: ReactNode; className?: string }) {
   return (
     <span
       className={`inline-flex items-center justify-center rounded-full text-[11px] font-medium align-middle whitespace-nowrap ${className}`}
@@ -270,9 +303,7 @@ function MotionCard({
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.25 }}
     >
-      <div className="mb-4 md:mb-5 lg:mb-6 font-semibold text-foreground">
-        {title}
-      </div>
+      <div className="mb-4 md:mb-5 lg:mb-6 font-semibold text-foreground">{title}</div>
       {children}
     </motion.div>
   );
@@ -281,10 +312,11 @@ function MotionCard({
 /* ====================================================================== */
 
 export default function AuditDetail() {
-  const { id } = useParams<{ id: string }>();
+  const params = useParams<{ id: string }>();
+  const id = params.id ?? null;
   const navigate = useNavigate();
 
-  const [audit, setAudit] = useState<any>(null);
+  const [audit, setAudit] = useState<AuditRow | null>(null);
   const [recs, setRecs] = useState<RecNormalized[]>([]);
   const [md, setMd] = useState<string>("");
   const [loading, setLoading] = useState(true);
@@ -318,29 +350,44 @@ export default function AuditDetail() {
 
   useEffect(() => {
     let mounted = true;
+
     (async () => {
+      if (!id) {
+        setLoading(false);
+        return;
+      }
+
       setLoading(true);
-      const { data: a } = await supabase
+
+      const { data: a, error: auditErr } = await supabase
         .from("audits")
         .select("*")
         .eq("id", id)
         .maybeSingle();
-      const { data: r } = await supabase
+
+      const { data: r, error: recErr } = await supabase
         .from("recommendations")
         .select("*")
         .eq("audit_id", id);
+
       if (!mounted) return;
 
-      const normalized: RecNormalized[] = (r ?? []).map((x: any) => ({
+      if (auditErr) console.error("Failed to load audit", auditErr);
+      if (recErr) console.error("Failed to load recommendations", recErr);
+
+      const recRows = (r ?? []) as unknown as RecommendationRow[];
+      const normalized: RecNormalized[] = recRows.map((x) => ({
         ...x,
-        severity: fromDbSeverity(x.severity) as Sev,
-        status: fromDbStatus(x.status) as RecStatus,
+        severity: fromDbSeverity(x.severity ?? undefined) as Sev,
+        status: fromDbStatus(x.status ?? undefined) as RecStatus,
       }));
-      setAudit(a);
+
+      setAudit((a as unknown as AuditRow) ?? null);
       setRecs(normalized);
       setMd(localStorage.getItem("audit_recommendations") || "");
       setLoading(false);
     })();
+
     return () => {
       mounted = false;
     };
@@ -348,23 +395,20 @@ export default function AuditDetail() {
 
   // subject for narrative
   const subject: string = useMemo(() => {
-    const t = (audit?.user_type || audit?.meta?.user_type || "")
-      .toString()
-      .toLowerCase();
+    const t = (audit?.user_type || audit?.meta?.user_type || "").toString().toLowerCase();
     if (t === "developer" || t === "dev") return "The developer";
     return "The organization";
   }, [audit]);
 
   /* ------------------------------- score ------------------------------- */
   const summaryFromDb =
-    audit?.meta?.analytics?.summary_md ||
-    audit?.analytics?.summary_md ||
-    audit?.meta?.analytics?.summary ||
-    audit?.analytics?.summary ||
+    (audit?.meta?.analytics as unknown as { summary_md?: string; summary?: string } | null)?.summary_md ||
+    (audit?.analytics as unknown as { summary_md?: string; summary?: string } | null)?.summary_md ||
+    (audit?.meta?.analytics as unknown as { summary_md?: string; summary?: string } | null)?.summary ||
+    (audit?.analytics as unknown as { summary_md?: string; summary?: string } | null)?.summary ||
     null;
 
-  const legacySummaryFromMd = useMemo(() => md || "", [md]);
-  const fullNarrative: string = summaryFromDb || legacySummaryFromMd;
+  const fullNarrative: string = summaryFromDb || md || "";
 
   const narrativeIntro = useMemo(() => {
     if (!fullNarrative) return "";
@@ -372,45 +416,57 @@ export default function AuditDetail() {
     return (parts[0] || "").trim();
   }, [fullNarrative]);
 
-  function postureFromAnalytics(analytics: any): number | null {
+  function postureFromAnalytics(analytics: AnalyticsLike | null | undefined): number | null {
     if (!analytics) return null;
+
     const risk =
-      typeof analytics.risk_score === "string"
-        ? parseFloat(analytics.risk_score)
-        : analytics.risk_score;
+      typeof analytics.risk_score === "string" ? parseFloat(analytics.risk_score) : analytics.risk_score;
+
     if (Number.isFinite(risk)) return Math.round(risk as number);
+
     const overall =
-      typeof analytics.overallPct === "string"
-        ? parseFloat(analytics.overallPct)
-        : analytics.overallPct;
-    if (Number.isFinite(overall))
-      return Math.max(0, Math.min(100, 100 - Math.round(overall as number)));
+      typeof analytics.overallPct === "string" ? parseFloat(analytics.overallPct) : analytics.overallPct;
+
+    if (Number.isFinite(overall)) return Math.max(0, Math.min(100, 100 - Math.round(overall as number)));
+
     return null;
   }
 
-  const findings = useMemo(() => {
+  const findings: Finding[] = useMemo(() => {
     const raw = (audit?.baseline_findings ?? []) as Array<{
       severity?: string;
       mitigation?: string;
       text?: string;
       likelihood?: string;
     }>;
-    return raw.map((f) => ({
-      severity: normSev(f.severity),
-      mitigation: normMit(f.mitigation),
-      likelihood: f.likelihood ?? null,
-      text: f.text ?? "",
-    }));
+
+    const occurrences = new Map<string, number>();
+
+    return raw.map((f) => {
+      const severity = normSev(f.severity);
+      const mitigation = normMit(f.mitigation);
+      const likelihood = f.likelihood ?? null;
+      const text = f.text ?? "";
+
+      const signature = `${severity}|${mitigation}|${likelihood ?? ""}|${text}`;
+      const base = hashString(signature);
+      const prevCount = occurrences.get(base) ?? 0;
+      occurrences.set(base, prevCount + 1);
+
+      // stable + unique even when duplicates exist
+      const key = `${base}-${prevCount + 1}`;
+
+      return { key, severity, mitigation, likelihood, text };
+    });
   }, [audit]);
 
-  const baselineTotals = useMemo(
-    () => computeRiskTotals(findings as any),
-    [findings]
-  );
-  const baselineScore = useMemo(
-    () => posturePercent(baselineTotals),
-    [baselineTotals]
-  );
+  // Keep these casts "any-free" while remaining compatible with your utils typing.
+  const baselineTotals = useMemo(() => {
+    type TotalsArg = Parameters<typeof computeRiskTotals>[0];
+    return computeRiskTotals(findings as unknown as TotalsArg);
+  }, [findings]);
+
+  const baselineScore = useMemo(() => posturePercent(baselineTotals), [baselineTotals]);
 
   const mdFallbackScore = useMemo(() => {
     if (!fullNarrative) return null;
@@ -423,7 +479,7 @@ export default function AuditDetail() {
     baselineScore ??
     postureFromAnalytics(audit?.meta?.analytics) ??
     postureFromAnalytics(audit?.analytics) ??
-    (Number.isFinite(audit?.score) ? Number(audit.score) : null) ??
+    (Number.isFinite(audit?.score) ? Number(audit?.score) : null) ??
     mdFallbackScore ??
     0;
 
@@ -431,25 +487,24 @@ export default function AuditDetail() {
 
   /* ----------------------------- counts/groups ---------------------------- */
   const sevCounts = useMemo(() => {
-    const out = {
+    const out: Record<Sev, number> = {
       Critical: 0,
       High: 0,
       Medium: 0,
       Low: 0,
-    } as Record<Sev, number>;
-    for (const f of findings)
-      out[f.severity as Sev] = (out[f.severity as Sev] ?? 0) + 1;
+    };
+    for (const f of findings) out[f.severity] = (out[f.severity] ?? 0) + 1;
     return out;
   }, [findings]);
 
   const grouped = useMemo(() => {
-    const g: Record<Sev, typeof findings> = {
+    const g: Record<Sev, Finding[]> = {
       Critical: [],
       High: [],
       Medium: [],
       Low: [],
     };
-    findings.forEach((f) => g[f.severity as Sev].push(f));
+    for (const f of findings) g[f.severity].push(f);
     return g;
   }, [findings]);
 
@@ -478,7 +533,6 @@ export default function AuditDetail() {
           position: "bottom",
           labels: { color: theme.text },
         },
-        // @ts-expect-error custom plugin typing
         centerText: { text: `${score}%`, color: theme.text },
         tooltip: {
           titleColor: theme.text,
@@ -491,37 +545,23 @@ export default function AuditDetail() {
 
   /* ------------------------------- bar ------------------------------- */
   const barData = useMemo(() => {
-    const mitCounts = (SEVS as readonly string[]).reduce((acc, sev) => {
-      acc[sev as Sev] = { none: 0, partial: 0, full: 0 };
+    const mitCounts = (SEVS as readonly Sev[]).reduce((acc, sev) => {
+      acc[sev] = { none: 0, partial: 0, full: 0 };
       return acc;
     }, {} as Record<Sev, { none: number; partial: number; full: number }>);
 
     for (const f of findings) {
-      const sev: Sev = SEVS.includes(f.severity as Sev)
-        ? (f.severity as Sev)
-        : "Low";
-      const bucket = normMit(f.mitigation);
+      const sev: Sev = SEVS.includes(f.severity) ? f.severity : "Low";
+      const bucket = f.mitigation;
       mitCounts[sev][bucket]++;
     }
 
     return {
       labels: SEVS as unknown as string[],
       datasets: [
-        {
-          label: "None",
-          data: SEVS.map((s) => mitCounts[s as Sev].none),
-          backgroundColor: theme.barNone,
-        },
-        {
-          label: "Partial",
-          data: SEVS.map((s) => mitCounts[s as Sev].partial),
-          backgroundColor: theme.barPartial,
-        },
-        {
-          label: "Full",
-          data: SEVS.map((s) => mitCounts[s as Sev].full),
-          backgroundColor: theme.barFull,
-        },
+        { label: "None", data: SEVS.map((s) => mitCounts[s].none), backgroundColor: theme.barNone },
+        { label: "Partial", data: SEVS.map((s) => mitCounts[s].partial), backgroundColor: theme.barPartial },
+        { label: "Full", data: SEVS.map((s) => mitCounts[s].full), backgroundColor: theme.barFull },
       ],
     };
   }, [findings, theme]);
@@ -537,17 +577,8 @@ export default function AuditDetail() {
         },
       },
       scales: {
-        x: {
-          stacked: true,
-          ticks: { color: theme.subtext },
-          grid: { color: theme.grid },
-        },
-        y: {
-          stacked: true,
-          beginAtZero: true,
-          ticks: { color: theme.subtext },
-          grid: { color: theme.grid },
-        },
+        x: { stacked: true, ticks: { color: theme.subtext }, grid: { color: theme.grid } },
+        y: { stacked: true, beginAtZero: true, ticks: { color: theme.subtext }, grid: { color: theme.grid } },
       },
     }),
     [theme]
@@ -568,31 +599,28 @@ export default function AuditDetail() {
       );
       return `${counts.none}-${counts.partial}-${counts.full}`;
     }).join("|");
-    return `bar-${id}-${sums}`;
+    return `bar-${id ?? "noid"}-${sums}`;
   }, [findings, id]);
 
   /* ------------------------- Update recommendation ------------------------- */
   async function updateRecStatus(recId: string, newStatus: RecStatus) {
     setSavingId(recId);
     const prev = recs;
-    setRecs((p) =>
-      p.map((r) => (r.id === recId ? { ...r, status: newStatus } : r))
-    );
-    const { error } = await supabase
-      .from("recommendations")
-      .update({ status: newStatus })
-      .eq("id", recId);
+
+    setRecs((p) => p.map((r) => (r.id === recId ? { ...r, status: newStatus } : r)));
+
+    const { error } = await supabase.from("recommendations").update({ status: newStatus }).eq("id", recId);
+
     setSavingId(null);
+
     if (error) {
+      console.error("Failed to update rec status", error);
       setRecs(prev);
       alert("Failed to update status. Please try again.");
     }
   }
 
-  const allImplemented = useMemo(
-    () => recs.length > 0 && recs.every((r) => r.status === "implemented"),
-    [recs]
-  );
+  const allImplemented = useMemo(() => recs.length > 0 && recs.every((r) => r.status === "implemented"), [recs]);
 
   function resetCertModal() {
     setShowCertModal(false);
@@ -604,6 +632,14 @@ export default function AuditDetail() {
   }
 
   /* -------------------------------- render ------------------------------ */
+  if (!id) {
+    return (
+      <div className="min-h-[60vh] grid place-items-center text-muted-foreground">
+        Invalid audit id.
+      </div>
+    );
+  }
+
   if (loading) {
     return (
       <div className="min-h-[60vh] grid place-items-center text-muted-foreground">
@@ -619,9 +655,7 @@ export default function AuditDetail() {
         <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
           <div>
             <h1 className="text-2xl md:text-3xl font-bold">Audit Detail</h1>
-            <p className="text-sm text-muted-foreground">
-              {formatDate(audit?.created_at)}
-            </p>
+            <p className="text-sm text-muted-foreground">{formatDate(audit?.created_at ?? null)}</p>
           </div>
           <div className="flex items-center gap-2">
             <DashThemeToggle />
@@ -636,12 +670,14 @@ export default function AuditDetail() {
                 Request Certificate
               </button>
             )}
+
             <button
               onClick={async () => {
-                // simple lazy import to keep bundle light
-                const [{ default: html2canvas }, { jsPDF }] = await Promise.all(
-                  [import("html2canvas"), import("jspdf")]
-                );
+                const [{ default: html2canvas }, { jsPDF }] = await Promise.all([
+                  import("html2canvas"),
+                  import("jspdf"),
+                ]);
+
                 const p1 = page1Ref.current;
                 const p2 = page2Ref.current;
                 if (!p1) return;
@@ -654,11 +690,7 @@ export default function AuditDetail() {
                 });
                 const page1Img = page1Canvas.toDataURL("image/png");
 
-                const pdf = new jsPDF({
-                  orientation: "portrait",
-                  unit: "pt",
-                  format: "a4",
-                });
+                const pdf = new jsPDF({ orientation: "portrait", unit: "pt", format: "a4" });
                 const pageWidth = pdf.internal.pageSize.getWidth();
                 const pageHeight = pdf.internal.pageSize.getHeight();
                 const margin = 36;
@@ -666,40 +698,27 @@ export default function AuditDetail() {
 
                 const paintHeaderFooter = (pageNum: number) => {
                   const title = "AuditDapps Security Report";
-                  const dateStr = formatDate(audit?.created_at);
+                  const dateStr = formatDate(audit?.created_at ?? null);
+
                   pdf.setFont("helvetica", "bold");
                   pdf.setFontSize(12);
                   pdf.setTextColor("#0f172a");
                   pdf.text(title, margin, margin - 12);
+
                   pdf.setFont("helvetica", "normal");
                   pdf.setFontSize(10);
                   pdf.setTextColor("#475569");
-                  pdf.text(
-                    `Date: ${dateStr}  •  Audit ID: ${id}`,
-                    margin,
-                    margin + 2
-                  );
+                  pdf.text(`Date: ${dateStr}  •  Audit ID: ${id}`, margin, margin + 2);
+
                   pdf.setFontSize(9);
                   pdf.setTextColor("#94a3b8");
-                  pdf.text(
-                    `Page ${pageNum}`,
-                    pageWidth - margin,
-                    pageHeight - margin / 2,
-                    { align: "right" }
-                  );
+                  pdf.text(`Page ${pageNum}`, pageWidth - margin, pageHeight - margin / 2, { align: "right" });
                 };
 
                 paintHeaderFooter(1);
-                const p1Height =
-                  (page1Canvas.height * usableWidth) / page1Canvas.width;
-                pdf.addImage(
-                  page1Img,
-                  "PNG",
-                  margin,
-                  margin + 10,
-                  usableWidth,
-                  p1Height
-                );
+
+                const p1Height = (page1Canvas.height * usableWidth) / page1Canvas.width;
+                pdf.addImage(page1Img, "PNG", margin, margin + 10, usableWidth, p1Height);
 
                 if (p2) {
                   const page2Canvas = await html2canvas(p2, {
@@ -709,8 +728,7 @@ export default function AuditDetail() {
                     scrollY: -window.scrollY,
                   });
                   const page2Img = page2Canvas.toDataURL("image/png");
-                  const p2Height =
-                    (page2Canvas.height * usableWidth) / page2Canvas.width;
+                  const p2Height = (page2Canvas.height * usableWidth) / page2Canvas.width;
 
                   pdf.addPage();
                   paintHeaderFooter(2);
@@ -718,14 +736,7 @@ export default function AuditDetail() {
                   let rendered = 0;
                   while (rendered < p2Height) {
                     const y = margin + 10 - rendered;
-                    pdf.addImage(
-                      page2Img,
-                      "PNG",
-                      margin,
-                      y,
-                      usableWidth,
-                      p2Height
-                    );
+                    pdf.addImage(page2Img, "PNG", margin, y, usableWidth, p2Height);
                     rendered += pageHeight - margin * 2;
                     if (rendered < p2Height) {
                       pdf.addPage();
@@ -741,6 +752,7 @@ export default function AuditDetail() {
             >
               ⬇️ Export PDF
             </button>
+
             <button
               onClick={() => navigate("/dashboard")}
               className="px-3 py-1 rounded-full text-sm border border-border bg-card text-foreground hover:bg-accent/60"
@@ -761,20 +773,14 @@ export default function AuditDetail() {
         <div className="border rounded-2xl p-5 md:p-6 lg:p-7 border-border bg-card">
           <div className="flex items-center justify-between flex-wrap gap-2">
             <div>
-              <div className="text-xs uppercase tracking-wider text-muted-foreground">
-                AuditDapps
-              </div>
-              <h2 className="text-xl md:text-2xl font-semibold">
-                Security Report
-              </h2>
+              <div className="text-xs uppercase tracking-wider text-muted-foreground">AuditDapps</div>
+              <h2 className="text-xl md:text-2xl font-semibold">Security Report</h2>
               <div className="text-sm text-muted-foreground">
-                Date: {formatDate(audit?.created_at)} • Audit ID: {id}
+                Date: {formatDate(audit?.created_at ?? null)} • Audit ID: {id}
               </div>
             </div>
             <div className="text-right">
-              <div className="text-xs text-muted-foreground">
-                Overall Score
-              </div>
+              <div className="text-xs text-muted-foreground">Overall Score</div>
               <div className="text-3xl font-bold">{score}%</div>
             </div>
           </div>
@@ -782,10 +788,7 @@ export default function AuditDetail() {
 
         {/* Charts */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 md:gap-8">
-          <MotionCard
-            title="🌟 Overall Security Score"
-            className="lg:col-span-1"
-          >
+          <MotionCard title="🌟 Overall Security Score" className="lg:col-span-1">
             <div className="h-[15rem] md:h-[18rem] lg:h-[19rem]">
               <Doughnut
                 key={`donut-${score}`}
@@ -796,53 +799,39 @@ export default function AuditDetail() {
             </div>
             <div className="mt-5 text-xs md:text-sm text-muted-foreground space-y-1.5">
               <p>
-                This chart summarizes your overall <strong>security score</strong>{" "}
-                (0–100), calculated with weighted severity levels.{" "}
-                <em>Higher is better.</em>
+                This chart summarizes your overall <strong>security score</strong> (0–100), calculated with weighted
+                severity levels. <em>Higher is better.</em>
               </p>
               <p>
-                <strong>Scoring:</strong> Critical &amp; High findings carry more
-                weight. Full mitigation <strong>increases</strong> the score; no
-                mitigation <strong>decreases</strong> it.
+                <strong>Scoring:</strong> Critical &amp; High findings carry more weight. Full mitigation{" "}
+                <strong>increases</strong> the score; no mitigation <strong>decreases</strong> it.
               </p>
               <p>
-                <strong>Interpretation:</strong> Aim for <strong>80%+</strong>.{" "}
-                <strong>60–79%</strong> needs improvement;{" "}
-                <strong>below 60%</strong> indicates elevated risk.
+                <strong>Interpretation:</strong> Aim for <strong>80%+</strong>. <strong>60–79%</strong> needs
+                improvement; <strong>below 60%</strong> indicates elevated risk.
               </p>
             </div>
           </MotionCard>
 
           {/* Bar */}
-          <MotionCard
-            title="⚖️ Mitigation by Severity"
-            className="lg:col-span-2"
-          >
+          <MotionCard title="⚖️ Mitigation by Severity" className="lg:col-span-2">
             <div className="h-[15rem] md:h-[18rem] lg:h-[19rem]">
               <Bar key={barKey} data={barData} options={barOptions} />
             </div>
             <div className="mt-5 text-xs md:text-sm text-muted-foreground space-y-1.5">
-              <p>
-                This chart breaks down how issues by severity are currently
-                mitigated (from baseline findings):
-              </p>
+              <p>This chart breaks down how issues by severity are currently mitigated (from baseline findings):</p>
               <ul className="list-disc list-inside">
                 <li>
                   <strong>None</strong>: Issue not addressed at all
                 </li>
                 <li>
-                  <strong>Partial</strong>: Some effort has been made, but it’s
-                  incomplete
+                  <strong>Partial</strong>: Some effort has been made, but it’s incomplete
                 </li>
                 <li>
-                  <strong>Full</strong>: Issue is completely resolved or
-                  mitigated
+                  <strong>Full</strong>: Issue is completely resolved or mitigated
                 </li>
               </ul>
-              <p>
-                This visual helps prioritize action. For example, critical issues
-                with &quot;None&quot; status are urgent.
-              </p>
+              <p>This visual helps prioritize action. For example, critical issues with &quot;None&quot; status are urgent.</p>
             </div>
           </MotionCard>
         </div>
@@ -850,9 +839,7 @@ export default function AuditDetail() {
         {/* Summary */}
         <MotionCard title="🧾 Audit Summary">
           <div className="mb-4 text-sm">
-            <div className="font-medium mb-1">
-              Findings snapshot (deterministic)
-            </div>
+            <div className="font-medium mb-1">Findings snapshot (deterministic)</div>
             <div className="flex flex-wrap gap-2">
               <Pill className="bg-rose-200/20 text-rose-400 border border-rose-400/30">
                 Critical: {sevCounts.Critical}
@@ -871,9 +858,7 @@ export default function AuditDetail() {
 
           {narrativeIntro && (
             <div className="prose prose-invert prose-sm md:prose-base max-w-none mb-6">
-              <ReactMarkdown remarkPlugins={[remarkGfm]}>
-                {narrativeIntro}
-              </ReactMarkdown>
+              <ReactMarkdown remarkPlugins={[remarkGfm]}>{narrativeIntro}</ReactMarkdown>
             </div>
           )}
 
@@ -881,27 +866,17 @@ export default function AuditDetail() {
             {SEVS.map((sev) => (
               <div key={sev}>
                 <div className="flex items-center gap-2 mb-2">
-                  {sev === "Critical" && (
-                    <span className="text-rose-400 text-lg">🔴</span>
-                  )}
-                  {sev === "High" && (
-                    <span className="text-orange-400 text-lg">🎯</span>
-                  )}
-                  {sev === "Medium" && (
-                    <span className="text-amber-400 text-lg">⚠️</span>
-                  )}
-                  {sev === "Low" && (
-                    <span className="text-emerald-400 text-lg">🟡</span>
-                  )}
+                  {sev === "Critical" && <span className="text-rose-400 text-lg">🔴</span>}
+                  {sev === "High" && <span className="text-orange-400 text-lg">🎯</span>}
+                  {sev === "Medium" && <span className="text-amber-400 text-lg">⚠️</span>}
+                  {sev === "Low" && <span className="text-emerald-400 text-lg">🟡</span>}
                   <h3 className="text-lg font-semibold">{sev} Severity</h3>
                 </div>
+
                 {grouped[sev].length ? (
                   <ul className="space-y-2">
-                    {grouped[sev].map((f, idx) => (
-                      <li
-                        key={`${sev}-${idx}`}
-                        className="flex items-start gap-2"
-                      >
+                    {grouped[sev].map((f) => (
+                      <li key={f.key} className="flex items-start gap-2">
                         <span
                           className={`mt-[6px] inline-block w-2 h-2 rounded-full ${
                             sev === "Critical"
@@ -916,18 +891,13 @@ export default function AuditDetail() {
                         <span className="text-sm text-muted-foreground">
                           {humanizeFindingText(f.text, subject)}
                           {f.likelihood ? ` [Likelihood: ${f.likelihood}]` : ""}
-                          {` [Mitigation: ${
-                            f.mitigation.charAt(0).toUpperCase() +
-                            f.mitigation.slice(1)
-                          }]`}
+                          {` [Mitigation: ${f.mitigation.charAt(0).toUpperCase() + f.mitigation.slice(1)}]`}
                         </span>
                       </li>
                     ))}
                   </ul>
                 ) : (
-                  <p className="text-sm text-muted-foreground">
-                    No {sev.toLowerCase()} findings.
-                  </p>
+                  <p className="text-sm text-muted-foreground">No {sev.toLowerCase()} findings.</p>
                 )}
               </div>
             ))}
@@ -942,7 +912,7 @@ export default function AuditDetail() {
         className="max-w-screen-xl mx-auto px-4 md:px-6 lg:px-8 pb-8"
       >
         <MotionCard title="🛠️ Tailored Actionable Recommendations">
-          {recs && recs.length ? (
+          {recs.length ? (
             <div className="overflow-hidden rounded-xl border border-border">
               <table className="min-w-full text-sm">
                 <thead>
@@ -956,15 +926,8 @@ export default function AuditDetail() {
                 <tbody>
                   {[...recs]
                     .sort((a, b) => {
-                      const order: Record<string, number> = {
-                        Critical: 0,
-                        High: 1,
-                        Medium: 2,
-                        Low: 3,
-                      };
-                      return (
-                        (order[a.severity] ?? 9) - (order[b.severity] ?? 9)
-                      );
+                      const order: Record<Sev, number> = { Critical: 0, High: 1, Medium: 2, Low: 3 };
+                      return (order[a.severity] ?? 9) - (order[b.severity] ?? 9);
                     })
                     .map((r) => (
                       <tr key={r.id} className="border-t border-border">
@@ -983,9 +946,9 @@ export default function AuditDetail() {
                             {r.severity}
                           </Pill>
                         </td>
-                        <td className="py-2 px-3">
-                          {cleanRecTitle(r.title)}
-                        </td>
+
+                        <td className="py-2 px-3">{cleanRecTitle(r.title)}</td>
+
                         <td className="py-2 px-3 capitalize">
                           <span
                             className={`inline-flex items-center justify-center rounded-full text-[11px] px-2 h-6 border ${
@@ -999,29 +962,24 @@ export default function AuditDetail() {
                             {r.status}
                           </span>
                         </td>
+
                         <td className="py-2 px-3">
                           <div className="flex items-center gap-2">
                             <select
                               value={r.status}
                               disabled={savingId === r.id}
-                              onChange={(e) =>
-                                updateRecStatus(
-                                  r.id,
-                                  e.target.value as RecStatus
-                                )
-                              }
+                              onChange={(e) => updateRecStatus(r.id, e.target.value as RecStatus)}
                               className="rounded border border-border bg-card text-sm px-2 py-1"
                             >
                               <option value="open">Open</option>
                               <option value="partial">Partial</option>
                               <option value="implemented">Implemented</option>
                             </select>
+
                             {r.status !== "implemented" && (
                               <button
                                 disabled={savingId === r.id}
-                                onClick={() =>
-                                  updateRecStatus(r.id, "implemented")
-                                }
+                                onClick={() => updateRecStatus(r.id, "implemented")}
                                 className="text-xs px-2 py-1 rounded bg-emerald-600 text-white hover:opacity-90 disabled:opacity-60"
                                 title="Mark as Implemented"
                               >
@@ -1036,9 +994,7 @@ export default function AuditDetail() {
               </table>
             </div>
           ) : (
-            <p className="text-sm text-muted-foreground">
-              No tailored recommendations available.
-            </p>
+            <p className="text-sm text-muted-foreground">No tailored recommendations available.</p>
           )}
 
           <div className="mt-4 text-xs text-muted-foreground">
@@ -1053,39 +1009,29 @@ export default function AuditDetail() {
       {showCertModal && (
         <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-50 p-4">
           <div className="bg-card border border-border rounded-2xl shadow-xl w-full max-w-md p-6 space-y-5">
-            {/* HEADER */}
             <div className="flex justify-between items-center">
               <h2 className="text-lg font-semibold">Request Certificate</h2>
-              <button
-                className="text-muted-foreground hover:text-foreground"
-                onClick={resetCertModal}
-              >
+              <button className="text-muted-foreground hover:text-foreground" onClick={resetCertModal}>
                 ✕
               </button>
             </div>
 
-            {/* SUCCESS MESSAGE */}
             {certDone ? (
               <div className="text-center space-y-4 py-6">
                 <div className="text-3xl">🎉</div>
                 <h3 className="text-xl font-semibold">Request Submitted</h3>
                 <p className="text-muted-foreground text-sm">
-                  Thank you! Our team will now review your implementation
-                  work. Once verified, your audit certificate will be issued
-                  to you via email.
+                  Thank you! Our team will now review your implementation work. Once verified, your audit certificate
+                  will be issued to you via email.
                 </p>
-                <button
-                  onClick={resetCertModal}
-                  className="mt-4 px-4 py-2 rounded bg-primary text-primary-foreground"
-                >
+                <button onClick={resetCertModal} className="mt-4 px-4 py-2 rounded bg-primary text-primary-foreground">
                   Close
                 </button>
               </div>
             ) : (
               <>
-                {/* FORM */}
                 <div className="space-y-4">
-                  <div>
+                  <div className="space-y-4">
                     <div>
                       <label htmlFor="certProject" className="block text-sm mb-1">
                         Project Name
@@ -1111,7 +1057,7 @@ export default function AuditDetail() {
                         placeholder="https://github.com/user/project"
                       />
                     </div>
-                                      </div>
+                  </div>
 
                   <label className="flex items-start gap-2 text-sm">
                     <input
@@ -1120,60 +1066,44 @@ export default function AuditDetail() {
                       onChange={(e) => setCertAgree(e.target.checked)}
                       className="mt-1"
                     />
-                    <span>
-                      I confirm that all recommendations have been fully
-                      implemented.
-                    </span>
+                    <span>I confirm that all recommendations have been fully implemented.</span>
                   </label>
                 </div>
 
-                {/* ACTION BUTTON */}
                 <button
-                  disabled={
-                    !certRepo || !certProject || !certAgree || certLoading
-                  }
+                  disabled={!certRepo || !certProject || !certAgree || certLoading}
                   onClick={async () => {
                     try {
                       setCertLoading(true);
 
-                      // get current user
-                      const { data, error: userError } =
-                        await supabase.auth.getUser();
+                      const { data, error: userError } = await supabase.auth.getUser();
                       const user = data?.user;
 
                       if (userError || !user) {
                         setCertLoading(false);
-                        alert(
-                          "You need to be logged in to request a certificate."
-                        );
+                        alert("You need to be logged in to request a certificate.");
                         return;
                       }
 
-                      const { error } = await supabase.functions.invoke(
-                        "send-certificate-request",
-                        {
-                          body: {
-                            project: certProject,
-                            repo: certRepo,
-                            user_id: user.id,
-                            email: user.email,
-                            audit_id: id,
-                          },
-                        }
-                      );
+                      const { error } = await supabase.functions.invoke("send-certificate-request", {
+                        body: {
+                          project: certProject,
+                          repo: certRepo,
+                          user_id: user.id,
+                          email: user.email,
+                          audit_id: id,
+                        },
+                      });
 
                       setCertLoading(false);
 
                       if (error) {
-                        console.error(
-                          "Certificate request failed",
-                          error
-                        );
+                        console.error("Certificate request failed", error);
                         alert("Something went wrong. Please try again.");
                       } else {
                         setCertDone(true);
                       }
-                    } catch (err) {
+                    } catch (err: unknown) {
                       console.error(err);
                       setCertLoading(false);
                       alert("Something went wrong. Please try again.");

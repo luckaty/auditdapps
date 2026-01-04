@@ -59,7 +59,7 @@ export default function ContinueAudit() {
       // 2) Load profile to know if they are premium
       const { data: profile, error: profileErr } = await supabase
         .from("profiles")
-        .select("is_premium, one_time_access, plan")
+        .select("is_premium, premium_expires_at")
         .eq("id", user.id)
         .maybeSingle();
 
@@ -67,10 +67,15 @@ export default function ContinueAudit() {
         console.error("[ContinueAudit] profile error:", profileErr);
       }
 
-      const isPremium =
-        !!profile?.is_premium ||
-        !!profile?.one_time_access ||
-        profile?.plan === "premium";
+      const isPremium = !!profile?.is_premium;
+      const isExpired =
+        profile?.premium_expires_at
+          ? new Date(profile.premium_expires_at).getTime() <= Date.now()
+          : false;
+
+      // premium = true AND not expired
+      const hasPremiumAccess = isPremium && !isExpired;
+
 
       // 3) Pull answers stored by SelfAudit
       const pending = loadPendingAnswers();
@@ -237,11 +242,12 @@ export default function ContinueAudit() {
         // 11) Redirect:
         //     - Premium users → go straight to audit details
         //     - Free users   → go to dashboard (where audit is visible but gated)
-        if (isPremium && auditId) {
+        if (hasPremiumAccess && auditId) {
           navigate(`/audits/${auditId}`);
         } else {
           navigate("/dashboard");
         }
+
       } catch (e: any) {
         console.error("[ContinueAudit] generation error:", e);
         setError(e?.message || "Failed to generate and save results.");

@@ -280,11 +280,11 @@ function PeriodToggle({
   const onKeyDown = (e: React.KeyboardEvent<HTMLDivElement>) => {
     if (e.key === "ArrowRight" || e.key === "ArrowLeft") {
       e.preventDefault();
-      setPeriod((prev) => {
-        if (prev === "weekly") return "monthly";
-        if (prev === "monthly") return "annual";
-        return "weekly";
-      });
+      const next: Period =
+        period === "weekly" ? "monthly" : period === "monthly" ? "annual" : "weekly";
+
+      setPeriod(next);
+
     }
   };
 

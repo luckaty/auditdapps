@@ -2,11 +2,9 @@
 import { motion } from "framer-motion";
 import { CheckCircle, Mail, ExternalLink } from "lucide-react";
 import { Link } from "react-router-dom";
+import { cardVariants } from "@/lib/motion";
 
-const cardVariants = {
-  hidden: { opacity: 0, y: 24, scale: 0.98 },
-  visible: { opacity: 1, y: 0, scale: 1, transition: { duration: 0.45, ease: "easeOut" } },
-};
+
 
 export default function CheckEmail() {
   return (
