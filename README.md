@@ -1,145 +1,142 @@
 # AuditDApps
-AI-Powered Security Self-Audit Platform for Web3 & Modern Applications
 
-AuditDApps is a full-stack security platform that enables developers, startups, and organisations to evaluate the security posture of their applications through a guided self-audit, deterministic risk analysis, and AI-assisted security recommendations.
+**AuditDApps** is a security-focused platform that helps blockchain developers and teams identify risks in smart contracts through guided self-audits and AI-assisted analysis.
 
-The project is built as a production-grade system, not a demo, with real authentication, persistent storage, secure backend logic, and payment handling.
+The platform is designed to encourage security thinking early in the development lifecycle, before formal third-party audits.
 
-Live site: https://auditdapps.com
-Source code: This repository
+---
 
+## Why AuditDApps exists
 
-## MOTIVATION
+Smart contract vulnerabilities remain one of the leading causes of financial loss in Web3.
 
-Security audits are often expensive, slow, and inaccessible to early-stage teams. As a result, many applications ship with avoidable vulnerabilities that later lead to exploits, financial loss, or reputational damage.
+Many teams:
+- deploy contracts without structured security reviews
+- rely on late, expensive audits
+- miss common issues that could be caught earlier
 
-AuditDApps was created to:
-- Make security assessment more accessible
-- Encourage security-first thinking early in development
-- Provide structured, repeatable audit workflows
-- Bridge the gap between self-assessment and professional audits
+AuditDApps helps teams:
+- think like auditors earlier
+- identify high-risk patterns
+- receive actionable remediation guidance
 
-The platform is designed to scale toward more advanced auditing, reporting, and certification workflows over time.
+---
 
+## Key features
 
-## CORE FEATURES
+- **Guided self-audit flow**  
+  Step-by-step security questionnaires tailored for developers and organisations.
 
-Authentication & Access Control
-- Email/password authentication via Supabase
-- Email verification flow with secure redirects
-- Protected routes and role-based access
-- Persistent user profiles and audit ownership
-- Session-aware routing to prevent data loss
+- **AI-assisted security analysis**  
+  Structured summaries, risk scores, and findings with remediation guidance.
 
-Guided Self-Audit Flow
-- Step-by-step audit experience (one question at a time)
-- Developer-specific and Organisation-specific audit paths
-- Dynamic progress tracking
-- Local persistence to prevent accidental loss before login
+- **Severity-based findings**  
+  Issues categorised as Critical, High, Medium, or Low.
 
-Deterministic Risk Analysis
-- Non-AI baseline risk scoring engine
-- Severity-weighted findings (Critical, High, Medium, Low)
-- Transparent and explainable scoring model
-- Aggregated risk analytics for dashboards and reports
+- **User dashboard**  
+  View previous audits, track progress, and manage reports.
 
-AI-Assisted Recommendations
-- AI used only on the server side
-- Structured prompts generated from audit responses
-- Human-readable security recommendations
-- AI augments deterministic analysis rather than replacing it
+- **Supabase-powered backend**  
+  Authentication, database, and Edge Functions for scalable infrastructure.
 
-Audit Persistence & History
-- Audits saved per authenticated user
-- Full audit history accessible via dashboard
-- Individual audit detail pages
-- Recommendation tracking and implementation status
+---
 
-Payments & Billing
-- Live Stripe payment integration
-- Payments handled entirely by Stripe
-- Checkout sessions created server-side via Supabase Edge Functions
-- No Stripe secrets exposed to the client
+## Tech stack
 
-
-TECHNICAL ARCHITECTURE
-
-Frontend
-- React + TypeScript
+**Frontend**
+- React
+- TypeScript
 - Vite
 - Tailwind CSS
-- React Router
-- Zustand
+- Framer Motion
 
-Backend & Infrastructure
-- Supabase (PostgreSQL, Auth)
-- Row Level Security enforced
-- Supabase Edge Functions (Deno)
+**Backend**
+- Supabase (Auth, Postgres, Edge Functions)
+- Deno (for Edge Functions)
 
-Security by Design
-- No secrets committed to source control
-- Environment variables handled securely
-- Privileged logic isolated server-side
+**AI**
+- OpenAI (via Supabase Edge Functions)
 
+**Testing & Tooling**
+- ESLint
+- Vitest
+- GitHub Actions (CI)
 
-## PROJECT STRUCTURE
+---
 
-src/
-  components/
-  pages/
-  lib/
-  utils/
-  store/
-  scoring/
-  types/
+## Architecture overview
 
-supabase/
-  functions/
-  config.toml
+AuditDApps follows a clean separation between frontend, backend, and AI execution.
 
+High-level flow:
+1. User completes a self-audit or submits a scan request
+2. Answers are formatted into a structured prompt
+3. The frontend calls a Supabase Edge Function
+4. The Edge Function performs AI analysis
+5. Structured results are returned and rendered in the UI
+6. Results can be stored and accessed via the dashboard
 
-## LOCAL DEVELOPMENT
+More details:
+- [Architecture](ARCHITECTURE.md)
+- [Edge Functions](docs/EDGE_FUNCTIONS.md)
 
-1. Install dependencies
-   npm install
+---
 
-2. Create environment file
-   cp .env.example .env
+## Security & responsibility
 
-3. Start development server
-   npm run dev
+Security is taken seriously in this project.
 
-API keys (Supabase, OpenAI, Stripe) are required via environment variables.
+- Secrets are never exposed in frontend code
+- AI keys and sensitive logic live only in Edge Functions
+- Responsible disclosure is encouraged
 
+See:
+- [Security Policy](SECURITY.md)
 
-## ABOUT THE PROJECT & CONTRIBUTORS
+---
 
-AuditDApps is a founder-led security research initiative operationalised into a production SaaS platform for Web3 security self-audits.
+## Roadmap
 
-The security research foundation, audit methodology, and risk models were developed by Henry Ajah (MSc Cyber Security) as part of an academic research project.
+### Planned
+- Slither integration for static smart-contract analysis
+- PDF audit report export
+- Improved risk scoring models
+- Team and organisation workspaces
 
-Blessed Ogechukwu served as Lead Engineer, responsible for translating this research into a secure, scalable, production-ready platform used by external developers and organisations.
+### In progress
+- Scanner flow hardening
+- Type-safety improvements
+- Test coverage expansion
 
-## Lead Engineering Responsibilities
+---
 
-As Lead Engineer, Blessed Ogechukwu led the full engineering delivery of the platform, including:
+## Documentation
 
-System and frontend architecture using React and TypeScript
+- [Contributing](CONTRIBUTING.md)
+- [Security Policy](SECURITY.md)
+- [Release Process](RELEASE.md)
+- [Changelog](CHANGELOG.md)
 
-Secure authentication, routing, and session management
+---
 
-Audit logic implementation, persistence, and user ownership enforcement
+## Project status
 
-Backend and database integration
+AuditDApps is under active development.
 
-Server-side AI-assisted recommendation workflows
+Features are evolving, and feedback from developers and security practitioners is welcome.
 
-Stripe-based billing and access control
+---
 
-Production deployment and scalability preparation
+## Leadership & contribution
 
-While the security research and methodology are founder-owned, this repository represents Blessed Ogechukwu’s independent engineering implementation and system delivery.
+AuditDApps is developed by the **Auditdapps** organisation.
 
-## LICENSE
+**Technical leadership and core engineering** are led by  
+**Blessed (luckaty)** — Lead Engineer.
 
-MIT License
+---
+
+## License
+
+This project is licensed under the **MIT License**.  
+See the [LICENSE](LICENSE) file for details.
