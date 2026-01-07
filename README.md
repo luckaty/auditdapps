@@ -1,142 +1,173 @@
-# AuditDApps
+# AuditDapps
 
-**AuditDApps** is a security-focused platform that helps blockchain developers and teams identify risks in smart contracts through guided self-audits and AI-assisted analysis.
+AuditDapps is a smart contract security platform that helps Web3 teams identify risks early through guided self-audits and AI-assisted analysis — before expensive third-party audits.
 
-The platform is designed to encourage security thinking early in the development lifecycle, before formal third-party audits.
-
----
-
-## Why AuditDApps exists
-
-Smart contract vulnerabilities remain one of the leading causes of financial loss in Web3.
-
-Many teams:
-- deploy contracts without structured security reviews
-- rely on late, expensive audits
-- miss common issues that could be caught earlier
-
-AuditDApps helps teams:
-- think like auditors earlier
-- identify high-risk patterns
-- receive actionable remediation guidance
+The goal is simple: **reduce preventable vulnerabilities and improve security readiness** for developers, startups, and protocols.
 
 ---
 
-## Key features
+## Why AuditDapps
 
-- **Guided self-audit flow**  
-  Step-by-step security questionnaires tailored for developers and organisations.
+Many security issues are not caused by advanced attacks, but by:
+- missed best-practice checks
+- rushed deployments
+- lack of structured internal review
+- limited access to early security expertise
 
-- **AI-assisted security analysis**  
-  Structured summaries, risk scores, and findings with remediation guidance.
-
-- **Severity-based findings**  
-  Issues categorised as Critical, High, Medium, or Low.
-
-- **User dashboard**  
-  View previous audits, track progress, and manage reports.
-
-- **Supabase-powered backend**  
-  Authentication, database, and Edge Functions for scalable infrastructure.
+AuditDapps provides:
+- a structured self-audit flow
+- consistent security baselines
+- actionable findings and remediation guidance
+- an audit trail teams can iterate on before formal audits
 
 ---
 
-## Tech stack
+## Core Features
 
-**Frontend**
+### Guided Self-Audit
+A step-by-step checklist that adapts to:
+- developer vs organisation workflows
+- contract complexity
+- security maturity level
+
+### AI-Assisted Analysis
+Security findings are generated using:
+- predefined audit rubrics
+- Solidity security best practices
+- contextual analysis of user inputs
+
+The output includes:
+- risk score
+- executive summary
+- categorized findings (Critical / High / Medium / Low)
+- concrete remediation guidance
+
+### Audit History & Tracking
+Authenticated users can:
+- view previous audits
+- track implemented recommendations
+- maintain a security improvement record over time
+
+### Supabase-Backed Infrastructure
+- authentication
+- persistence
+- edge functions
+- role-based access
+
+---
+
+## Tech Stack
+
+### Frontend
 - React
 - TypeScript
-- Vite
 - Tailwind CSS
+- Vite
 - Framer Motion
+- Vitest (testing)
 
-**Backend**
-- Supabase (Auth, Postgres, Edge Functions)
-- Deno (for Edge Functions)
+### Backend & Platform
+- Supabase (Postgres, Auth, Storage)
+- Supabase Edge Functions (Deno)
+- OpenAI API (analysis generation)
 
-**AI**
-- OpenAI (via Supabase Edge Functions)
+### Architecture
+- client-side SPA
+- serverless edge execution
+- strict TypeScript boundaries
+- environment-based configuration
 
-**Testing & Tooling**
-- ESLint
-- Vitest
-- GitHub Actions (CI)
-
----
-
-## Architecture overview
-
-AuditDApps follows a clean separation between frontend, backend, and AI execution.
-
-High-level flow:
-1. User completes a self-audit or submits a scan request
-2. Answers are formatted into a structured prompt
-3. The frontend calls a Supabase Edge Function
-4. The Edge Function performs AI analysis
-5. Structured results are returned and rendered in the UI
-6. Results can be stored and accessed via the dashboard
-
-More details:
-- [Architecture](ARCHITECTURE.md)
-- [Edge Functions](docs/EDGE_FUNCTIONS.md)
+See [`ARCHITECTURE.md`](./ARCHITECTURE.md) for a deeper breakdown.
 
 ---
 
-## Security & responsibility
+## Repository Structure
 
-Security is taken seriously in this project.
-
-- Secrets are never exposed in frontend code
-- AI keys and sensitive logic live only in Edge Functions
-- Responsible disclosure is encouraged
-
-See:
-- [Security Policy](SECURITY.md)
-
----
-
-## Roadmap
-
-### Planned
-- Slither integration for static smart-contract analysis
-- PDF audit report export
-- Improved risk scoring models
-- Team and organisation workspaces
-
-### In progress
-- Scanner flow hardening
-- Type-safety improvements
-- Test coverage expansion
+```
+.
+├── src/
+│   ├── components/
+│   ├── pages/
+│   ├── routes/
+│   ├── scoring/
+│   ├── utils/
+│   └── services/
+├── supabase/
+│   └── functions/
+├── docs/
+├── ARCHITECTURE.md
+├── CONTRIBUTING.md
+├── SECURITY.md
+├── RELEASE.md
+└── README.md
+```
 
 ---
 
-## Documentation
+## Getting Started (Local Development)
 
-- [Contributing](CONTRIBUTING.md)
-- [Security Policy](SECURITY.md)
-- [Release Process](RELEASE.md)
-- [Changelog](CHANGELOG.md)
+### Prerequisites
+- Node.js 18+
+- npm
+- Supabase project (for full functionality)
+
+### Setup
+```bash
+git clone https://github.com/Auditdapps/auditdapps.git
+cd auditdapps
+npm install
+cp .env.example .env
+npm run dev
+```
 
 ---
 
-## Project status
+## Security
 
-AuditDApps is under active development.
+If you discover a security issue, **do not open a public issue**.
 
-Features are evolving, and feedback from developers and security practitioners is welcome.
+Please see [`SECURITY.md`](./SECURITY.md) for responsible disclosure instructions.
 
 ---
 
-## Leadership & contribution
+## Contributing
 
-AuditDApps is developed by the **Auditdapps** organisation.
+Contributions are welcome.
 
-**Technical leadership and core engineering** are led by  
-**Blessed (luckaty)** — Lead Engineer.
+Please read [`CONTRIBUTING.md`](./CONTRIBUTING.md) for:
+- branching strategy
+- commit conventions
+- development guidelines
+
+---
+
+## Releases
+
+Release history and versioning notes are documented in [`RELEASE.md`](./RELEASE.md).
 
 ---
 
 ## License
 
 This project is licensed under the **MIT License**.  
-See the [LICENSE](LICENSE) file for details.
+See [`LICENSE`](./LICENSE) for details.
+
+---
+
+## Project Status
+
+AuditDapps is under active development.
+
+Planned improvements include:
+- static analysis integration (e.g. Slither)
+- richer risk scoring models
+- exportable audit reports
+- organisation dashboards
+
+---
+
+## Maintainers
+
+AuditDapps is developed and maintained by the AuditDapps engineering team.
+
+Lead Engineer: **Blessed (luckaty)**
