@@ -46,7 +46,7 @@ const StepIndicator: FC<StepIndicatorProps> = ({ currentStep }) => {
           const isActive = idx === active;
 
           return (
-            <div key={idx} className="flex flex-col items-center text-center">
+            <div key={label} className="flex flex-col items-center text-center">
               <motion.div
                 className={[
                   "grid h-9 w-9 place-items-center rounded-full text-sm font-semibold shadow-sm",
