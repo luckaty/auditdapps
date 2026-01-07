@@ -6,6 +6,21 @@ The goal is simple: **reduce preventable vulnerabilities and improve security re
 
 ---
 
+## Screenshots
+
+> A quick visual overview of the product and self-audit experience.
+
+### Landing Page
+![Landing page](docs/screenshots/landing.png)
+
+### Self-Audit Flow
+![Self audit flow](docs/screenshots/self-audit.png)
+
+### Results & Findings
+![Audit results](docs/screenshots/reports.png)
+
+---
+
 ## Why AuditDapps
 
 Many security issues are not caused by advanced attacks, but by:
