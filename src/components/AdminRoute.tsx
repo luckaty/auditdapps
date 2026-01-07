@@ -5,6 +5,18 @@ import { supabase } from "../lib/supabaseClient";
 
 type Props = { children: React.ReactNode };
 
+type Role = "admin" | "user" | "premium" | string;
+
+type UserMetaWithRole = {
+  role?: Role;
+};
+
+function getRoleFromUser(user: { app_metadata?: unknown; user_metadata?: unknown } | null) {
+  const appMeta = (user?.app_metadata ?? {}) as UserMetaWithRole;
+  const userMeta = (user?.user_metadata ?? {}) as UserMetaWithRole;
+  return appMeta.role ?? userMeta.role ?? null;
+}
+
 export default function AdminRoute({ children }: Props): React.ReactElement {
   const [checking, setChecking] = useState(true);
   const [ok, setOk] = useState(false);
@@ -15,17 +27,13 @@ export default function AdminRoute({ children }: Props): React.ReactElement {
 
     (async () => {
       try {
-        // Make sure session is restored after hard refresh
+        // Ensure session is restored after hard refresh
         await supabase.auth.getSession();
 
         const { data } = await supabase.auth.getUser();
         const user = data?.user ?? null;
 
-        // Check both app_metadata and user_metadata
-        const role =
-          (user?.app_metadata as any)?.role ??
-          (user?.user_metadata as any)?.role ??
-          null;
+        const role = getRoleFromUser(user);
 
         if (mounted) {
           setOk(role === "admin");
@@ -50,7 +58,7 @@ export default function AdminRoute({ children }: Props): React.ReactElement {
 
   if (ok) return <>{children}</>;
 
-  // Preserve the target so login can bounce back to where the user tried to go
+  // Preserve target so login can bounce back
   const next = encodeURIComponent(loc.pathname + loc.search);
   return <Navigate to={`/login?next=${next}`} replace />;
 }

@@ -1,14 +1,14 @@
-// src/components/ComplianceLogos.tsx
+// src/components/ComplianceBadges.tsx
 import * as React from "react";
 
 type Logo = { src: string; name: string; invertInDark?: boolean };
 
 const logos: Logo[] = [
-  { src: "/logos/nist.png",          name: "NIST",          invertInDark: true },
+  { src: "/logos/nist.png", name: "NIST", invertInDark: true },
   { src: "/logos/iso-iec-27001.png", name: "ISO/IEC 27001", invertInDark: true },
-  { src: "/logos/owasp.png",         name: "OWASP",         invertInDark: true },
-  { src: "/logos/cis.png",           name: "CIS",           invertInDark: true },
-  { src: "/logos/gdpr.png",          name: "GDPR",          invertInDark: true },
+  { src: "/logos/owasp.png", name: "OWASP", invertInDark: true },
+  { src: "/logos/cis.png", name: "CIS", invertInDark: true },
+  { src: "/logos/gdpr.png", name: "GDPR", invertInDark: true },
 ];
 
 type Props = {
@@ -19,20 +19,37 @@ type Props = {
   animate?: boolean;
 };
 
-export default function ComplianceLogos({
+type MarqueeItem = Logo & { _copy: 0 | 1 };
+
+export default function ComplianceBadges({
   className = "",
   speed = 28,
   animate = true,
 }: Props) {
-  // Duplicate the list to create a seamless loop
-  const items = React.useMemo(() => [...logos, ...logos], []);
+  // Duplicate the list to create a seamless loop, but keep keys stable (no array index)
+  const items = React.useMemo<MarqueeItem[]>(
+    () => [
+      ...logos.map((l) => ({ ...l, _copy: 0 as const })),
+      ...logos.map((l) => ({ ...l, _copy: 1 as const })),
+    ],
+    []
+  );
+
+  // Typed CSS variable, no `any`
+  const marqueeStyle = React.useMemo(
+    () =>
+      ({
+        ["--duration" as `--${string}`]: `${speed}s`,
+      }) as React.CSSProperties,
+    [speed]
+  );
 
   if (!animate) {
-    // Fallback: your original static grid
+    // Fallback: static grid
     return (
       <section aria-label="Security frameworks and standards" className={className}>
-        <div className="max-w-6xl mx-auto px-4 sm:px-6">
-          <ul className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-4 md:gap-5">
+        <div className="mx-auto max-w-6xl px-4 sm:px-6">
+          <ul className="grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-5 md:gap-5">
             {logos.map((l) => (
               <li key={l.name} className="flex">
                 <Pill>
@@ -42,7 +59,7 @@ export default function ComplianceLogos({
                     loading="lazy"
                     decoding="async"
                     className={[
-                      "max-h-10 md:max-h-12 w-auto object-contain select-none pointer-events-none",
+                      "pointer-events-none select-none object-contain w-auto max-h-10 md:max-h-12",
                       l.invertInDark ? "dark:invert" : "",
                     ].join(" ")}
                   />
@@ -58,15 +75,15 @@ export default function ComplianceLogos({
   // Animated marquee
   return (
     <section aria-label="Security frameworks and standards" className={className}>
-      <div className="max-w-6xl mx-auto px-4 sm:px-6">
+      <div className="mx-auto max-w-6xl px-4 sm:px-6">
         <div className="relative overflow-hidden py-2">
           <div
-            className="marquee flex items-center gap-4 md:gap-6 will-change-transform"
-            style={{ ["--duration" as any]: `${speed}s` }}
+            className="marquee flex items-center gap-4 will-change-transform md:gap-6"
+            style={marqueeStyle}
             aria-hidden="true"
           >
-            {items.map((l, i) => (
-              <div key={`${l.name}-${i}`} className="shrink-0">
+            {items.map((l) => (
+              <div key={`${l.name}-${l._copy}`} className="shrink-0">
                 <Pill title={l.name}>
                   <img
                     src={l.src}
@@ -74,7 +91,7 @@ export default function ComplianceLogos({
                     loading="lazy"
                     decoding="async"
                     className={[
-                      "max-h-10 md:max-h-12 w-auto object-contain select-none pointer-events-none",
+                      "pointer-events-none select-none object-contain w-auto max-h-10 md:max-h-12",
                       l.invertInDark ? "dark:invert" : "",
                     ].join(" ")}
                   />
