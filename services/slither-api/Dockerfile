@@ -1,22 +1,25 @@
 FROM python:3.11-slim
 
-# System deps (git for later repo cloning, curl for healthchecks)
-RUN apt-get update && apt-get install -y --no-install-recommends \
-  git \
-  curl \
-  && rm -rf /var/lib/apt/lists/*
+# System deps for Slither + solc-select
+RUN apt-get update && apt-get install -y \
+    git \
+    curl \
+    build-essential \
+    && rm -rf /var/lib/apt/lists/*
 
-# Install slither + solc-select
-RUN pip install --no-cache-dir slither-analyzer solc-select fastapi uvicorn
+# Install solc-select + solc version
+RUN pip install --no-cache-dir solc-select \
+ && solc-select install 0.8.20 \
+ && solc-select use 0.8.20
 
-# Install a stable solc version
-RUN solc-select install 0.8.20 && solc-select use 0.8.20
-
+# Install python deps
 WORKDIR /app
+COPY requirements.txt .
+RUN pip install --no-cache-dir -r requirements.txt
 
-COPY app /app/app
-COPY scripts /app/scripts
+# Copy app
+COPY app ./app
+WORKDIR /app/app
 
-EXPOSE 8080
-
-CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8080"]
+EXPOSE 8000
+CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000"]

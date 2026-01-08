@@ -1,0 +1,6 @@
+services:
+  slither-api:
+    build:
+      context: ./services/slither-api
+    ports:
+      - "8000:8000"
