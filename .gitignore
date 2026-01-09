@@ -26,3 +26,10 @@ dist-ssr
 *.env.local
 *.zip
 supabase/.temp
+
+# Local test contracts
+test.sol
+__pycache__/
+*.pyc
+.venv/
+slither-venv/
