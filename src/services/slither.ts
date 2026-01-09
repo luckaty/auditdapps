@@ -1,4 +1,3 @@
-// src/services/slither.ts
 import type { StaticFinding } from "@/types/staticFinding";
 
 type SlitherAnalyzeResponse = {
@@ -7,11 +6,14 @@ type SlitherAnalyzeResponse = {
   findings: StaticFinding[];
 };
 
+const BASE_URL =
+  import.meta.env.VITE_SLITHER_API_URL?.trim() || "http://127.0.0.1:8001";
+
 export async function runSlitherAnalysis(args: {
   source_code: string;
   filename?: string;
 }): Promise<StaticFinding[]> {
-  const res = await fetch("http://127.0.0.1:8001/analyze", {
+  const res = await fetch(`${BASE_URL}/analyze`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
@@ -27,6 +29,5 @@ export async function runSlitherAnalysis(args: {
 
   const data = (await res.json()) as Partial<SlitherAnalyzeResponse>;
 
-  // ✅ clean + safe return (no frontend parsing)
-  return Array.isArray(data.findings) ? data.findings : [];
+  return (data.findings ?? []) as StaticFinding[];
 }
