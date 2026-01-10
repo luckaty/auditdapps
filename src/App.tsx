@@ -59,6 +59,7 @@ import { loadAndPersistPendingAudit } from "@/lib/pendingAudit";
 // ⛔ OLD ProtectedRoute removed from dashboard
 import { RequireAuth } from "./components/RequireAuth";
 import { RequirePremium } from "./components/RequirePremium";
+import FeedbackPage from "./pages/Feedback";
 
 /* ------------------ AUTH EFFECT – CLEANED UP ------------------ */
 /* this no longer forces pricing on sign in */
@@ -123,6 +124,8 @@ function AppShell() {
         {/* Pricing / payment */}
         <Route path="/pricing" element={<Pricing />} />
         <Route path="/auth/payment" element={<Payment />} />
+        
+
 
         {/* Blog / other pages */}
         <Route path="/how-it-works" element={<HowItWorks />} />
@@ -171,6 +174,15 @@ function AppShell() {
             </RequireAuth>
           }
         />
+
+        <Route path="/feedback" 
+        element={
+          <RequireAuth>
+              <FeedbackPage />
+            </RequireAuth>
+
+          }
+         />
 
         {/* Dev helper */}
   

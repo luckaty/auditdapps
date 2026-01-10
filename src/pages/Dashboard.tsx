@@ -1,8 +1,10 @@
+//src/pages/Dashboard.tsx
 import { useEffect, useMemo, useRef, useState, ReactNode } from "react";
 import { useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
 import { supabase } from "../lib/supabaseClient";
 import DashThemeToggle from "../components/DashThemeToggle";
+import FeedbackWidget from "../components/Feedback/FeedbackWidget";
 
 // DB <-> UI mappers
 import { fromDbSeverity, fromDbStatus, toDbStatus } from "@/lib/mappers";
@@ -514,7 +516,7 @@ export default function Dashboard() {
               tone="rose"
             />
           </div>
-
+              
           {/* Your Audits table (top 5) */}
           <motion.div
             className="mt-6 rounded-2xl border border-border bg-card/90 backdrop-blur shadow-sm"
@@ -686,11 +688,13 @@ export default function Dashboard() {
   </motion.div>
 )}
 
+
         </section>
       </div>
     </div>
   );
 }
+
 
 /* ===================== sidebar / ui helpers ===================== */
 function SidebarNav({
@@ -726,6 +730,8 @@ function SidebarNav({
           }
         }}
       />
+      <NavItem icon="💬" label="Help us improve" onClick={() => navigate("/feedback")} />
+
 
     </nav>
   );
@@ -767,6 +773,7 @@ function KPI({
     </motion.div>
   );
 }
+
 
 function NavItem({
   icon,
@@ -828,3 +835,4 @@ function SevPill({ s }: { s: Severity | string }) {
     </span>
   );
 }
+
