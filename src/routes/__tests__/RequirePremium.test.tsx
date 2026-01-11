@@ -54,7 +54,7 @@ describe("RequirePremium", () => {
     vi.clearAllMocks();
   });
 
-  it("renders children when user has premium (not expired)", async () => {
+  it("renders children when user has premium and it is not expired", async () => {
     (supabase.auth.getUser as unknown as ReturnType<typeof vi.fn>).mockResolvedValue({
       data: { user: { id: "user-123" } },
     });
@@ -71,7 +71,7 @@ describe("RequirePremium", () => {
     expect(await screen.findByText("Protected Content")).toBeInTheDocument();
   });
 
-  it("redirects to pricing when user is authenticated but not premium", async () => {
+  it("redirects to payment when user is authenticated but not premium", async () => {
     (supabase.auth.getUser as unknown as ReturnType<typeof vi.fn>).mockResolvedValue({
       data: { user: { id: "user-123" } },
     });
@@ -86,6 +86,7 @@ describe("RequirePremium", () => {
 
     render(<App />);
     expect(await screen.findByText("Payment Page")).toBeInTheDocument();
+    expect(screen.queryByText("Protected Content")).not.toBeInTheDocument();
   });
 
   it("redirects to login when user is not authenticated", async () => {
@@ -95,9 +96,10 @@ describe("RequirePremium", () => {
 
     render(<App />);
     expect(await screen.findByText("Login Page")).toBeInTheDocument();
+    expect(screen.queryByText("Protected Content")).not.toBeInTheDocument();
   });
 
-  it("shows payment/pricing when premium is expired", async () => {
+  it("redirects to payment when premium is expired", async () => {
     (supabase.auth.getUser as unknown as ReturnType<typeof vi.fn>).mockResolvedValue({
       data: { user: { id: "user-123" } },
     });
@@ -111,10 +113,7 @@ describe("RequirePremium", () => {
     });
 
     render(<App />);
-
-    // If your RequirePremium redirects to /auth/payment, expect Payment Page.
-    // If it redirects to /pricing, change this to "Pricing Page".
-    expect(await screen.findByText("Protected Content")).toBeInTheDocument();
-
+    expect(await screen.findByText("Payment Page")).toBeInTheDocument();
+    expect(screen.queryByText("Protected Content")).not.toBeInTheDocument();
   });
 });
