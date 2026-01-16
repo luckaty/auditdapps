@@ -9,7 +9,7 @@ import {
   useNavigate,
 } from "react-router-dom";
 import { Toaster } from "react-hot-toast";
-
+import FeedbackPage from "./pages/Feedback";
 import Navbar from "./components/Navbar";
 import Hero from "./components/Hero";
 import AuditCycle from "./components/AuditCycle";
@@ -181,6 +181,16 @@ function AppShell() {
             </RequireAuth>
           }
         />
+
+        <Route
+          path="/feedback"
+          element={
+            <RequireAuth>
+              <FeedbackPage />
+            </RequireAuth>
+          }
+        />
+
 
         {/* Dev helper */}
   
