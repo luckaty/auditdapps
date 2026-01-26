@@ -1,0 +1,8 @@
+{
+  "imports": {
+    "@supabase/supabase-js": "jsr:@supabase/supabase-js@2",
+    "@std/http/server": "jsr:@std/http@0.224.0/server",
+    "stripe": "npm:stripe@14.25.0",
+    "openai": "npm:openai@4"
+  }
+}

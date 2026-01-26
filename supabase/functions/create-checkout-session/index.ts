@@ -1,15 +1,12 @@
 // supabase/functions/create-checkout-session/index.ts
-import Stripe from "https://esm.sh/stripe@14?target=denonext";
+import Stripe from "stripe";
 
 const stripeSecretKey = Deno.env.get("STRIPE_SECRET_KEY");
 if (!stripeSecretKey) {
   throw new Error("Missing STRIPE_SECRET_KEY env var");
 }
 
-const stripe = new Stripe(stripeSecretKey, {
-  // Use the same or latest API version you set in Stripe dashboard
-  apiVersion: "2024-06-20",
-});
+const stripe = new Stripe(stripeSecretKey, {});
 
 // You can override this in Supabase env as PUBLIC_SITE_URL=https://auditdapps.com
 const DEFAULT_SITE_URL =
